@@ -50,8 +50,38 @@ func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 	return userBoards, nil
 }
 
-func (ub *UserBoard) GetUserBoard(db *sql.DB, userId int, boardId int) error {
-	row := db.QueryRow("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserBoard.UserId=@p1 AND UserBoard.BoardId=@p2", userId, boardId)
+func GetInvitedBoards(db *sql.DB, userId int) (ub []UserBoard, err error) {
+	rows, err := db.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=0", userId)
+	if err != nil {
+		log.Fatalln("User Boards:", err.Error())
+	}
+
+	defer rows.Close()
+
+	invitedUserBoards := []UserBoard{}
+
+	for rows.Next() {
+		var ub UserBoard
+		err = rows.Scan(
+			&ub.UserId,
+			&ub.BoardId,
+			&ub.RolesId,
+			&ub.InviteAccepted,
+			&ub.Board.BoardId,
+			&ub.Board.Title,
+			&ub.Board.Description,
+		)
+		if err != nil {
+			log.Fatalln("Row Does Not Exist", err.Error())
+		}
+		invitedUserBoards = append(invitedUserBoards, ub)
+	}
+
+	return invitedUserBoards, nil
+}
+
+func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
+	row := db.QueryRow("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserBoard.UserId=@p1 AND UserBoard.BoardId=@p2", ub.UserId, ub.BoardId)
 
 	err := row.Scan(
 		&ub.UserId,

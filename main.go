@@ -29,6 +29,7 @@ func router() {
 	r := mux.NewRouter() // r is the router
 	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET")
+	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
 }
 
@@ -43,6 +44,24 @@ func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, userBoards)
+}
+
+func getInvitedBoardsHandler(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, err := strconv.Atoi(params["userId"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid User Id")
+		return
+	}
+
+	userInvitedBoards, err := models.GetInvitedBoards(db_client.DBClient, id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error retrieiving invited boards")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, userInvitedBoards)
+
 }
 
 func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +79,7 @@ func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ub := models.UserBoard{UserId: userId, BoardId: boardId}
-	if err := ub.GetUserBoard(db_client.DBClient, userId, boardId); err != nil {
+	if err := ub.GetUserBoard(db_client.DBClient); err != nil {
 		switch err {
 		case sql.ErrNoRows:
 			respondWithError(w, http.StatusNotFound, "Request board not found")
