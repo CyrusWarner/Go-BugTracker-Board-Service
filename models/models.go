@@ -22,7 +22,7 @@ type Board struct {
 }
 
 func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
-	rows, err := db_client.DBClient.Query("Select * FROM UserBoard INNER JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=1", userId)
+	rows, err := db_client.DBClient.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=1", userId)
 	if err != nil {
 		log.Fatalln("Unable to Retrieve User Boards", err.Error())
 	}
@@ -38,9 +38,9 @@ func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 			&ub.BoardId,
 			&ub.RolesId,
 			&ub.InviteAccepted,
-			&ub.BoardId,
-			&ub.Title,
-			&ub.Description,
+			&ub.Board.BoardId,
+			&ub.Board.Title,
+			&ub.Board.Description,
 		)
 		if err != nil {
 			log.Fatalln("Row Does Not Exist", err.Error())

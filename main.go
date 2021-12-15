@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -29,17 +30,31 @@ func router() {
 
 	// First initialize the Router
 	r := mux.NewRouter() // r is the router
-	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoards).Methods("GET")
+	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
 }
 
-func getUsersBoards(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r) // Gets any params in the http request
-	userId := params["userId"]
+func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)      // Gets any params in the http request
+	userId := params["userId"] // accessing the userId param
 
 	userBoards, err := models.GetUsersBoards(db_client.DBClient, userId)
 	if err != nil {
-		log.Fatalln("Getting User Boards has failed")
+		respondWithError(w, http.StatusInternalServerError, "Unable to retrieve users boards")
+		return
 	}
 
+	respondWithJSON(w, http.StatusOK, userBoards)
+}
+
+func respondWithError(w http.ResponseWriter, statusCode int, errmessage string) {
+	respondWithJSON(w, statusCode, map[string]string{"error": errmessage}) // Passes the ResponseWriter, statusCode, and creates an array with an error object
+}
+
+func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
+	response, _ := json.Marshal(payload) // returns the json encoding of a value
+
+	w.Header().Set("Content-Type", "application/json") // sets the return type as a Json Object
+	w.WriteHeader(statusCode)                          // adds the status code to the response
+	w.Write(response)                                  // Writes the response
 }
