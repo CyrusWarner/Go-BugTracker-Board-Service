@@ -12,7 +12,7 @@ type UserBoard struct {
 	BoardId        int  `json:"boardId"`
 	RolesId        int  `json:"rolesId"`
 	InviteAccepted bool `json:"inviteAccepted"`
-	Board
+	Board          `json:"board"`
 }
 
 type Board struct {

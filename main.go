@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,10 +10,6 @@ import (
 
 	"github.com/gorilla/mux"
 ) // importing the db_client package
-
-type App struct {
-	DB *sql.DB
-}
 
 func main() {
 	db_client.InitializeDBConnection()
