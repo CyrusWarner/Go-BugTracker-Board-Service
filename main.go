@@ -29,6 +29,8 @@ func router() {
 	r := mux.NewRouter() // r is the router
 	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET")
+	r.HandleFunc("/api/board", createBoard).Methods("POST")
+
 	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
 }
@@ -89,6 +91,25 @@ func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithJSON(w, http.StatusOK, ub)
+}
+
+func createBoard(w http.ResponseWriter, r *http.Request) {
+	var b models.Board
+
+	decoder := json.NewDecoder(r.Body) // returns a new decoder
+	if err := decoder.Decode(&b); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Board: Invalid Request Payload")
+		return
+	}
+
+	defer r.Body.Close()
+
+	if err := b.AddNewBoard(db_client.DBClient); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, b)
 }
 
 func respondWithError(w http.ResponseWriter, statusCode int, errmessage string) {
