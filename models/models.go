@@ -24,7 +24,7 @@ type Board struct {
 func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 	rows, err := db_client.DBClient.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=1", userId)
 	if err != nil {
-		log.Fatalln("Unable to Retrieve User Boards", err.Error())
+		log.Fatalln("User Boards: ", err.Error())
 	}
 
 	defer rows.Close()
@@ -48,4 +48,19 @@ func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 		userBoards = append(userBoards, ub) // append the memory address of the board to the array of Board pointer objects
 	}
 	return userBoards, nil
+}
+
+func (ub *UserBoard) GetUserBoard(db *sql.DB, userId int, boardId int) error {
+	row := db.QueryRow("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserBoard.UserId=@p1 AND UserBoard.BoardId=@p2", userId, boardId)
+
+	err := row.Scan(
+		&ub.UserId,
+		&ub.BoardId,
+		&ub.RolesId,
+		&ub.InviteAccepted,
+		&ub.Board.BoardId,
+		&ub.Board.Title,
+		&ub.Board.Description,
+	)
+	return err
 }
