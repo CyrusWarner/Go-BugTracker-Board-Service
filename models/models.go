@@ -21,7 +21,7 @@ type Board struct {
 	Description string `json:"description"`
 }
 
-func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
+func GetUsersBoards(db *sql.DB, userId string) ([]UserBoard, error) {
 	// Gets a users boards where they have accepted their invite
 	rows, err := db_client.DBClient.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=1", userId)
 	if err != nil {
@@ -51,7 +51,7 @@ func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 	return userBoards, nil
 }
 
-func GetInvitedBoards(db *sql.DB, userId int) (ub []UserBoard, err error) {
+func GetInvitedBoards(db *sql.DB, userId int) ([]UserBoard, error) {
 	// gets a users invited boards where they have not excepted their invite
 	rows, err := db.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=0", userId)
 	if err != nil {
@@ -115,6 +115,9 @@ func (b *Board) AddNewBoard(db *sql.DB) error {
 	return err
 }
 
+// This method exists and will be used to change the owner of the board
+// Currently there can only be one board owner this will be used to change the board owner
+// TODO Change this method to allow for the RolesId to be changed
 func (ub *UserBoard) AddBoardToUserBoard(db *sql.DB, userId int, boardId int) error {
 	row := db.QueryRow(
 		"INSERT INTO UserBoard(userId, BoardId, RolesId, InviteAccepted) Values(@p1, @p2, @p3, @p4) SELECT * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",

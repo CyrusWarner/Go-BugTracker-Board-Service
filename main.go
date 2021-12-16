@@ -133,6 +133,7 @@ func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, ub)
 }
 
+// TODO MAKE THIS METHOD HAVE SINGLE RESPONSIBILITY SHOULD NOT CALL respondWithError
 func getRouteParamAsInt(paramName string, r *http.Request, w http.ResponseWriter) (int, error) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params[paramName])
