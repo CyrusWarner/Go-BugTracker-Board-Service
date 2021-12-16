@@ -11,12 +11,12 @@ import (
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/models"
 
 	"github.com/gorilla/mux"
-) // importing the db_client package
+)
 
 func main() {
 	db_client.InitializeDBConnection()
 
-	router()
+	router() // has all of our routes using mux router
 
 	// Close the database connection pool after program executes
 	defer db_client.DBClient.Close() // deferred so this function runs after main
@@ -25,13 +25,12 @@ func main() {
 
 func router() {
 
-	// First initialize the Router
-	r := mux.NewRouter() // r is the router
-	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")
-	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET")
-	r.HandleFunc("/api/board", createBoard).Methods("POST")
+	r := mux.NewRouter()                                                                                 // r is the router
+	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")                // gets all of a users boards if the inviteAccepted flag is true
+	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET") // gets a requested board
+	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")       // gets all of a users boards where the inviteAccepted flag is false
+	r.HandleFunc("/api/board", createBoardHandler).Methods("POST")                                       // allows a user to create a new board
 
-	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
 }
 
@@ -50,7 +49,7 @@ func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
 
 func getInvitedBoardsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, err := strconv.Atoi(params["userId"])
+	id, err := strconv.Atoi(params["userId"]) // converts the userId param to an int
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid User Id")
 		return
@@ -67,23 +66,22 @@ func getInvitedBoardsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	params := mux.Vars(r)
+	userId, userIdErr := strconv.Atoi(params["userId"]) // converts the params to type int
+	boardId, boardIdErr := strconv.Atoi(params["boardId"])
 
-	userId, userIdErr := strconv.Atoi(vars["userId"])
-	boardId, boardIdErr := strconv.Atoi(vars["boardId"])
-
-	if userIdErr != nil {
+	if userIdErr != nil { // checks for if the requested userId is invalid
 		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
 		return
-	} else if boardIdErr != nil {
+	} else if boardIdErr != nil { // checks for if the requested boardId is invalid
 		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
 		return
 	}
 
-	ub := models.UserBoard{UserId: userId, BoardId: boardId}
-	if err := ub.GetUserBoard(db_client.DBClient); err != nil {
+	ub := models.UserBoard{UserId: userId, BoardId: boardId}    // ub is the receiver so it will receive the values assigned when calling ub.GetUserBoard
+	if err := ub.GetUserBoard(db_client.DBClient); err != nil { // declare the err variable and use a switch case to check for what errors have occured
 		switch err {
-		case sql.ErrNoRows:
+		case sql.ErrNoRows: // Sql found no rows matching the requested board
 			respondWithError(w, http.StatusNotFound, "Request board not found")
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -93,12 +91,12 @@ func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, ub)
 }
 
-func createBoard(w http.ResponseWriter, r *http.Request) {
-	var b models.Board
+func createBoardHandler(w http.ResponseWriter, r *http.Request) {
+	var b models.Board // this is the receiver variable that will receive the new boards object values
 
-	decoder := json.NewDecoder(r.Body) // returns a new decoder
-	if err := decoder.Decode(&b); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Board: Invalid Request Payload")
+	decoder := json.NewDecoder(r.Body)         // returns a new decoder
+	if err := decoder.Decode(&b); err != nil { //Takes in a pointer and checks the payload to make sure the interfaces are matching
+		respondWithError(w, http.StatusBadRequest, "Board: Invalid Request Payload") // if the Request body is not theboard model, a BadRequest is sent back with an error
 		return
 	}
 
@@ -112,10 +110,17 @@ func createBoard(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, b)
 }
 
+// takes in a responseWriter, statusCode, and an error message
+// Calls RespondWithJSON, and creates a key value pair with the error and the errmessage using map[string]string
 func respondWithError(w http.ResponseWriter, statusCode int, errmessage string) {
 	respondWithJSON(w, statusCode, map[string]string{"error": errmessage}) // Passes the ResponseWriter, statusCode, and creates an array with an error object
 }
 
+// takes in a responseWriter, statusCode, and an error message
+// uses json.Marshal(payload) and returns the byte array called response
+// Sets the header to Content-Type application/json
+// Writes the statusCode in the Header
+// Writes the response
 func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
 	response, _ := json.Marshal(payload) // returns the json encoding of a value as a byte array
 

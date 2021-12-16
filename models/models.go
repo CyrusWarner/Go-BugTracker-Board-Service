@@ -97,7 +97,6 @@ func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
 
 func (b *Board) AddNewBoard(db *sql.DB) error {
 	row := db.QueryRow("INSERT INTO Boards(Title, Description) OUTPUT INSERTED.BoardId, INSERTED.Description, INSERTED.Title Values (@p1, @p2)", b.Title, b.Description)
-
 	err := row.Scan(
 		&b.BoardId,
 		&b.Title,
