@@ -22,18 +22,19 @@ type Board struct {
 }
 
 func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
+	// Gets a users boards where they have accepted their invite
 	rows, err := db_client.DBClient.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=1", userId)
 	if err != nil {
-		log.Fatalln("User Boards: ", err.Error())
+		log.Fatalln("User Boards: ", err.Error()) //TODO Replace this error
 	}
 
 	defer rows.Close()
 
 	userBoards := []UserBoard{}
 
-	for rows.Next() {
+	for rows.Next() { // For each row we build a userBoard object to add to the array of userBoards
 		var ub UserBoard
-		err = rows.Scan(
+		err = rows.Scan( // scans through the rows for each provided field
 			&ub.UserId,
 			&ub.BoardId,
 			&ub.RolesId,
@@ -51,6 +52,7 @@ func GetUsersBoards(db *sql.DB, userId string) (ub []UserBoard, err error) {
 }
 
 func GetInvitedBoards(db *sql.DB, userId int) (ub []UserBoard, err error) {
+	// gets a users invited boards where they have not excepted their invite
 	rows, err := db.Query("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND InviteAccepted=0", userId)
 	if err != nil {
 		log.Fatalln("User Boards:", err.Error())
@@ -81,6 +83,7 @@ func GetInvitedBoards(db *sql.DB, userId int) (ub []UserBoard, err error) {
 }
 
 func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
+	// Queries a single UserBoard Row with the requested userId and boardId
 	row := db.QueryRow("Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserBoard.UserId=@p1 AND UserBoard.BoardId=@p2", ub.UserId, ub.BoardId)
 
 	err := row.Scan(
@@ -96,7 +99,13 @@ func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
 }
 
 func (b *Board) AddNewBoard(db *sql.DB) error {
-	row := db.QueryRow("INSERT INTO Boards(Title, Description) OUTPUT INSERTED.BoardId, INSERTED.Description, INSERTED.Title Values (@p1, @p2)", b.Title, b.Description)
+	//Inserts the requested board object and Returns the newly inserted board object
+	// TODO CREATE A WAY TO IMEDIATELY ADD THE USER TO USERBOARD JUNCTION TABLE IN A SEPERATE QUERY METHOD
+	row := db.QueryRow(
+		"INSERT INTO Boards(Title, Description) OUTPUT INSERTED.BoardId, INSERTED.Description, INSERTED.Title Values (@p1, @p2)",
+		b.Title,
+		b.Description,
+	)
 	err := row.Scan(
 		&b.BoardId,
 		&b.Title,
@@ -104,5 +113,25 @@ func (b *Board) AddNewBoard(db *sql.DB) error {
 	)
 
 	return err
+}
 
+func (ub *UserBoard) AddBoardToUserBoard(db *sql.DB, userId int, boardId int) error {
+	row := db.QueryRow(
+		"INSERT INTO UserBoard(userId, BoardId, RolesId, InviteAccepted) Values(@p1, @p2, @p3, @p4) SELECT * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",
+		userId,
+		boardId,
+		3,
+		1,
+	)
+	err := row.Scan(
+		&ub.UserId,
+		&ub.BoardId,
+		&ub.RolesId,
+		&ub.InviteAccepted,
+		&ub.Board.BoardId,
+		&ub.Board.Title,
+		&ub.Board.Description,
+	)
+
+	return err
 }

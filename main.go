@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -30,6 +31,7 @@ func router() {
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET") // gets a requested board
 	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")       // gets all of a users boards where the inviteAccepted flag is false
 	r.HandleFunc("/api/board", createBoardHandler).Methods("POST")                                       // allows a user to create a new board
+	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/add", addBoardToUserBoard).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
 }
@@ -110,13 +112,44 @@ func createBoardHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, b)
 }
 
+func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
+	var ub models.UserBoard
+
+	userId, err := getRouteParamAsInt("userId", r, w)
+	if err != nil {
+		return
+	}
+
+	boardId, err := getRouteParamAsInt("boardId", r, w)
+	if err != nil {
+		return
+	}
+
+	if err := ub.AddBoardToUserBoard(db_client.DBClient, userId, boardId); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ub)
+}
+
+func getRouteParamAsInt(paramName string, r *http.Request, w http.ResponseWriter) (int, error) {
+	params := mux.Vars(r)
+	id, err := strconv.Atoi(params[paramName])
+	if err != nil {
+		errString := fmt.Sprintf("Invalid %s", paramName)
+		respondWithError(w, http.StatusBadRequest, errString)
+	}
+	return id, err
+}
+
 // takes in a responseWriter, statusCode, and an error message
 // Calls RespondWithJSON, and creates a key value pair with the error and the errmessage using map[string]string
 func respondWithError(w http.ResponseWriter, statusCode int, errmessage string) {
 	respondWithJSON(w, statusCode, map[string]string{"error": errmessage}) // Passes the ResponseWriter, statusCode, and creates an array with an error object
 }
 
-// takes in a responseWriter, statusCode, and an error message
+// takes in a responseWriter, statusCode, and a payload
 // uses json.Marshal(payload) and returns the byte array called response
 // Sets the header to Content-Type application/json
 // Writes the statusCode in the Header
