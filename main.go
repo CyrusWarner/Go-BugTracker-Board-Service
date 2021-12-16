@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -20,7 +19,7 @@ func main() {
 	router() // has all of our routes using mux router
 
 	// Close the database connection pool after program executes
-	defer db_client.DBClient.Close() // deferred so this function runs after main
+	defer db_client.DBClient.Close() // deferred so this function runs after main executes
 
 }
 
@@ -94,38 +93,43 @@ func getUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createBoardHandler(w http.ResponseWriter, r *http.Request) {
-	var b models.Board // this is the receiver variable that will receive the new boards object values
-
-	decoder := json.NewDecoder(r.Body)         // returns a new decoder
-	if err := decoder.Decode(&b); err != nil { //Takes in a pointer and checks the payload to make sure the interfaces are matching
+	var requestedBoard models.Board
+	var err error
+	decoder := json.NewDecoder(r.Body)                      // returns a new decoder
+	if err := decoder.Decode(&requestedBoard); err != nil { //Takes in a pointer and checks the payload to make sure the interfaces are matching
 		respondWithError(w, http.StatusBadRequest, "Board: Invalid Request Payload") // if the Request body is not theboard model, a BadRequest is sent back with an error
 		return
 	}
 
 	defer r.Body.Close()
 
-	if err := b.AddNewBoard(db_client.DBClient); err != nil {
+	if requestedBoard, err = models.AddNewBoard(db_client.DBClient, requestedBoard); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, b)
+	respondWithJSON(w, http.StatusCreated, requestedBoard)
 }
 
 func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
 	var ub models.UserBoard
-
-	userId, err := getRouteParamAsInt("userId", r, w)
+	var err error
+	userId, err := getRouteParamAsInt("userId", r)
 	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
 		return
 	}
 
-	boardId, err := getRouteParamAsInt("boardId", r, w)
+	boardId, err := getRouteParamAsInt("boardId", r)
 	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
 		return
 	}
 
-	if err := ub.AddBoardToUserBoard(db_client.DBClient, userId, boardId); err != nil {
+	ub.UserId = userId // combines the route params with the UserBoard object to use in the AddBoardToUserBoard function
+	ub.BoardId = boardId
+
+	if ub, err = models.AddBoardToUserBoard(db_client.DBClient, ub); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -134,13 +138,9 @@ func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
 }
 
 // TODO MAKE THIS METHOD HAVE SINGLE RESPONSIBILITY SHOULD NOT CALL respondWithError
-func getRouteParamAsInt(paramName string, r *http.Request, w http.ResponseWriter) (int, error) {
+func getRouteParamAsInt(paramName string, r *http.Request) (int, error) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params[paramName])
-	if err != nil {
-		errString := fmt.Sprintf("Invalid %s", paramName)
-		respondWithError(w, http.StatusBadRequest, errString)
-	}
 	return id, err
 }
 

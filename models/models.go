@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/db_client"
@@ -63,7 +64,7 @@ func GetInvitedBoards(db *sql.DB, userId int) ([]UserBoard, error) {
 	invitedUserBoards := []UserBoard{}
 
 	for rows.Next() {
-		var ub UserBoard
+		var ub UserBoard // destination must be a pointer when using rows.
 		err = rows.Scan(
 			&ub.UserId,
 			&ub.BoardId,
@@ -76,6 +77,7 @@ func GetInvitedBoards(db *sql.DB, userId int) ([]UserBoard, error) {
 		if err != nil {
 			log.Fatalln("Row Does Not Exist", err.Error())
 		}
+		fmt.Println(ub)
 		invitedUserBoards = append(invitedUserBoards, ub)
 	}
 
@@ -98,7 +100,7 @@ func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
 	return err
 }
 
-func (b *Board) AddNewBoard(db *sql.DB) error {
+func AddNewBoard(db *sql.DB, b Board) (Board, error) { // utilizing a pointer receiver as we are modifying the passed in Board and not returning
 	//Inserts the requested board object and Returns the newly inserted board object
 	// TODO CREATE A WAY TO IMEDIATELY ADD THE USER TO USERBOARD JUNCTION TABLE IN A SEPERATE QUERY METHOD
 	row := db.QueryRow(
@@ -111,18 +113,17 @@ func (b *Board) AddNewBoard(db *sql.DB) error {
 		&b.Title,
 		&b.Description,
 	)
-
-	return err
+	return b, err
 }
 
 // This method exists and will be used to change the owner of the board
 // Currently there can only be one board owner this will be used to change the board owner
 // TODO Change this method to allow for the RolesId to be changed
-func (ub *UserBoard) AddBoardToUserBoard(db *sql.DB, userId int, boardId int) error {
+func AddBoardToUserBoard(db *sql.DB, ub UserBoard) (UserBoard, error) {
 	row := db.QueryRow(
 		"INSERT INTO UserBoard(userId, BoardId, RolesId, InviteAccepted) Values(@p1, @p2, @p3, @p4) SELECT * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",
-		userId,
-		boardId,
+		ub.UserId,
+		ub.BoardId,
 		3,
 		1,
 	)
@@ -136,5 +137,5 @@ func (ub *UserBoard) AddBoardToUserBoard(db *sql.DB, userId int, boardId int) er
 		&ub.Board.Description,
 	)
 
-	return err
+	return ub, err
 }
