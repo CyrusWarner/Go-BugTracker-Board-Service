@@ -144,7 +144,6 @@ func addBoardToUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func acceptBoardInviteHandler(w http.ResponseWriter, r *http.Request) {
-	ub := models.UserBoard{} // short handway of instantiatiing an empty ub struct
 	var userId int
 	var boardId int
 	var err error
@@ -157,16 +156,12 @@ func acceptBoardInviteHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
 		return
 	}
-	ub.UserId = userId
-	ub.BoardId = boardId
 
-	defer r.Body.Close()
-
-	if ub, err = models.AcceptBoardInvite(db_client.DBClient, ub); err != nil {
+	if err := models.AcceptBoardInvite(db_client.DBClient, userId, boardId); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusOK, ub)
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": "Successfully Accepted Board Invite"})
 }
 
 func inviteUserToBoardHandler(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +212,7 @@ func removeUserFromBoardHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
 
-	respondWithJSON(w, http.StatusOK, "Board Successfully removed")
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": "Successfully Removed User From Board"})
 }
 
 func getRouteParamAsInt(paramName string, r *http.Request) (int, error) {

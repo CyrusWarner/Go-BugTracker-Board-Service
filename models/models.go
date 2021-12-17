@@ -100,9 +100,8 @@ func (ub *UserBoard) GetUserBoard(db *sql.DB) error {
 	return err
 }
 
-func AddNewBoard(db *sql.DB, b Board) (Board, error) { // utilizing a pointer receiver as we are modifying the passed in Board and not returning
-	//Inserts the requested board object and Returns the newly inserted board object
-	// TODO CREATE A WAY TO IMEDIATELY ADD THE USER TO USERBOARD JUNCTION TABLE IN A SEPERATE QUERY METHOD
+// TODO CREATE A WAY TO IMEDIATELY ADD THE USER TO USERBOARD JUNCTION TABLE IN A SEPERATE QUERY METHOD
+func AddNewBoard(db *sql.DB, b Board) (Board, error) {
 	row := db.QueryRow(
 		"INSERT INTO Boards(Title, Description) OUTPUT INSERTED.BoardId, INSERTED.Description, INSERTED.Title Values (@p1, @p2)",
 		b.Title,
@@ -117,8 +116,7 @@ func AddNewBoard(db *sql.DB, b Board) (Board, error) { // utilizing a pointer re
 }
 
 // This method exists and will be used to change the owner of the board
-// Currently there can only be one board owner this will be used to change the board owner
-// TODO Change this method to allow for the RolesId to be changed
+// Currently there can only be one board owner this will be used to change the board owner if for some reason a user may need it
 func AddBoardToUserBoard(db *sql.DB, ub UserBoard) (UserBoard, error) {
 	row := db.QueryRow(
 		"INSERT INTO UserBoard(userId, BoardId, RolesId, InviteAccepted) Values(@p1, @p2, @p3, @p4) SELECT * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",
@@ -158,25 +156,14 @@ func InviteUserToBoard(db *sql.DB, ub UserBoard) (UserBoard, error) {
 	return ub, err
 }
 
-// TODO At some point we will change this query to not return any data.
-func AcceptBoardInvite(db *sql.DB, ub UserBoard) (UserBoard, error) {
-	row := db.QueryRow(
-		"UPDATE UserBoard SET RolesId=2, InviteAccepted=1 WHERE UserId=@p1 AND BoardId=@p2 AND InviteAccepted=0 Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",
-		ub.UserId,
-		ub.BoardId,
+func AcceptBoardInvite(db *sql.DB, userId int, boardId int) error {
+	_, err := db.Exec(
+		"UPDATE UserBoard SET RolesId=2, InviteAccepted=1 WHERE UserId=@p1 AND BoardId=@p2 AND InviteAccepted=0",
+		userId,
+		boardId,
 	)
 
-	err := row.Scan(
-		&ub.UserId,
-		&ub.BoardId,
-		&ub.RolesId,
-		&ub.InviteAccepted,
-		&ub.Board.BoardId,
-		&ub.Board.Title,
-		&ub.Board.Description,
-	)
-
-	return ub, err
+	return err
 }
 
 func RemoveUserFromBoard(db *sql.DB, userId int, boardId int) error {
