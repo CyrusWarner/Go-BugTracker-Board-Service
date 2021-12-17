@@ -28,13 +28,14 @@ func router() {
 	r := mux.NewRouter()                                                                                 // r is the router
 	r.HandleFunc("/api/board/user/{userId:[0-9]+}", getUsersBoardsHandler).Methods("GET")                // gets all of a users boards if the inviteAccepted flag is true
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", getUserBoardHandler).Methods("GET") // gets a requested board
-	r.HandleFunc("/api/invitedboard/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")       // gets all of a users boards where the inviteAccepted flag is false
+	r.HandleFunc("/api/invited-board/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")      // gets all of a users boards where the inviteAccepted flag is false
 	r.HandleFunc("/api/board", createBoardHandler).Methods("POST")                                       // allows a user to create a new board
-	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/add", addBoardToUserBoard).Methods("POST")
-
-	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails it will throw an error
+	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/add", addBoardToUserBoardHandler).Methods("POST")
+	r.HandleFunc("/api/invited-board/{boardId:[0-9]+}/user/{userId:[0-9]+}", acceptBoardInviteHandler).Methods("PUT")
+	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails the program will safely exit
 }
 
+// TODO make global empty variables and use them as copies for each request, so we arent modifying the data
 func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)      // Gets any params in the http request
 	userId := params["userId"] // accessing the userId param
@@ -111,7 +112,7 @@ func createBoardHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, requestedBoard)
 }
 
-func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
+func addBoardToUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 	var ub models.UserBoard
 	var err error
 	userId, err := getRouteParamAsInt("userId", r)
@@ -134,6 +135,30 @@ func addBoardToUserBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	respondWithJSON(w, http.StatusOK, ub)
+}
+
+func acceptBoardInviteHandler(w http.ResponseWriter, r *http.Request) {
+	ub := models.UserBoard{} // short handway of instantiatiing an empty ub struct
+	var userId int
+	var boardId int
+	var err error
+
+	if userId, err = getRouteParamAsInt("userId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
+		return
+	}
+	if boardId, err = getRouteParamAsInt("boardId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
+		return
+	}
+	ub.UserId = userId
+	ub.BoardId = boardId
+
+	if ub, err = models.AcceptBoardInvite(db_client.DBClient, ub); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	respondWithJSON(w, http.StatusOK, ub)
 }
 

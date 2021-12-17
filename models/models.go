@@ -136,6 +136,26 @@ func AddBoardToUserBoard(db *sql.DB, ub UserBoard) (UserBoard, error) {
 		&ub.Board.Title,
 		&ub.Board.Description,
 	)
+	return ub, err
+}
+
+// TODO At some point we will change this query not return any data.
+func AcceptBoardInvite(db *sql.DB, ub UserBoard) (UserBoard, error) {
+	row := db.QueryRow(
+		"UPDATE UserBoard SET RolesId=2, InviteAccepted=1 WHERE UserId=@p1 AND BoardId=@p2 AND InviteAccepted=0 Select * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",
+		ub.UserId,
+		ub.BoardId,
+	)
+
+	err := row.Scan(
+		&ub.UserId,
+		&ub.BoardId,
+		&ub.RolesId,
+		&ub.InviteAccepted,
+		&ub.Board.BoardId,
+		&ub.Board.Title,
+		&ub.Board.Description,
+	)
 
 	return ub, err
 }
