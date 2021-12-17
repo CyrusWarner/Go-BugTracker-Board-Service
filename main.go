@@ -33,6 +33,7 @@ func router() {
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/add", addBoardToUserBoardHandler).Methods("POST")
 	r.HandleFunc("/api/invite/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", inviteUserToBoardHandler).Methods("POST")
 	r.HandleFunc("/api/invited-board/{boardId:[0-9]+}/user/{userId:[0-9]+}", acceptBoardInviteHandler).Methods("PUT")
+	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/delete", removeUserFromBoardHandler).Methods("DELETE")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails the program will safely exit
 }
 
@@ -194,6 +195,29 @@ func inviteUserToBoardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, ub)
+}
+
+// TODO ADD CHECKS FOR UPDATE AND DELETE FUNCTIONALITY TO MAKE SURE THE USER REQUSTING TO MAKE CHANGES IS THE BOARDOWNER
+func removeUserFromBoardHandler(w http.ResponseWriter, r *http.Request) {
+	var userId int
+	var boardId int
+	var err error
+
+	if userId, err = getRouteParamAsInt("userId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
+		return
+	}
+
+	if boardId, err = getRouteParamAsInt("boardId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
+		return
+	}
+
+	if err := models.RemoveUserFromBoard(db_client.DBClient, userId, boardId); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+
+	respondWithJSON(w, http.StatusOK, "Board Successfully removed")
 }
 
 func getRouteParamAsInt(paramName string, r *http.Request) (int, error) {

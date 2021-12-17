@@ -178,3 +178,10 @@ func AcceptBoardInvite(db *sql.DB, ub UserBoard) (UserBoard, error) {
 
 	return ub, err
 }
+
+func RemoveUserFromBoard(db *sql.DB, userId int, boardId int) error {
+	// _ ignores th sql result
+	_, err := db.Exec("DELETE FROM UserBoard WHERE UserId=@p1 AND BoardId=@p2 ", userId, boardId)
+
+	return err
+}
