@@ -31,11 +31,13 @@ func router() {
 	r.HandleFunc("/api/invited-board/user/{userId:[0-9]+}", getInvitedBoardsHandler).Methods("GET")      // gets all of a users boards where the inviteAccepted flag is false
 	r.HandleFunc("/api/board", createBoardHandler).Methods("POST")                                       // allows a user to create a new board
 	r.HandleFunc("/api/board/{boardId:[0-9]+}/user/{userId:[0-9]+}/add", addBoardToUserBoardHandler).Methods("POST")
+	r.HandleFunc("/api/invite/board/{boardId:[0-9]+}/user/{userId:[0-9]+}", inviteUserToBoardHandler).Methods("POST")
 	r.HandleFunc("/api/invited-board/{boardId:[0-9]+}/user/{userId:[0-9]+}", acceptBoardInviteHandler).Methods("PUT")
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails the program will safely exit
 }
 
 // TODO make global empty variables and use them as copies for each request, so we arent modifying the data
+// TODO Create more user friendly errors for each method specifically for if a row is not found
 func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)      // Gets any params in the http request
 	userId := params["userId"] // accessing the userId param
@@ -130,6 +132,8 @@ func addBoardToUserBoardHandler(w http.ResponseWriter, r *http.Request) {
 	ub.UserId = userId // combines the route params with the UserBoard object to use in the AddBoardToUserBoard function
 	ub.BoardId = boardId
 
+	defer r.Body.Close()
+
 	if ub, err = models.AddBoardToUserBoard(db_client.DBClient, ub); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -155,6 +159,8 @@ func acceptBoardInviteHandler(w http.ResponseWriter, r *http.Request) {
 	ub.UserId = userId
 	ub.BoardId = boardId
 
+	defer r.Body.Close()
+
 	if ub, err = models.AcceptBoardInvite(db_client.DBClient, ub); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -162,7 +168,34 @@ func acceptBoardInviteHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, ub)
 }
 
-// TODO MAKE THIS METHOD HAVE SINGLE RESPONSIBILITY SHOULD NOT CALL respondWithError
+func inviteUserToBoardHandler(w http.ResponseWriter, r *http.Request) {
+	ub := models.UserBoard{}
+	var userId int
+	var boardId int
+	var err error
+
+	if userId, err = getRouteParamAsInt("userId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
+		return
+	}
+	if boardId, err = getRouteParamAsInt("boardId", r); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Board ID")
+		return
+	}
+
+	ub.UserId = userId
+	ub.BoardId = boardId
+
+	defer r.Body.Close()
+
+	if ub, err = models.InviteUserToBoard(db_client.DBClient, ub); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ub)
+}
+
 func getRouteParamAsInt(paramName string, r *http.Request) (int, error) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params[paramName])
