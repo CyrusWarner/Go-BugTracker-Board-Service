@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/db_client"
+	jwt "github.com/golang-jwt/jwt"
 )
 
 type UserBoard struct {
@@ -20,6 +21,20 @@ type Board struct {
 	BoardId     int    `json:"boardId"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
+}
+
+type Claims struct {
+	UserTokenData
+	jwt.StandardClaims
+}
+
+type UserTokenData struct {
+	UserId         int
+	FirstName      string
+	LastName       string
+	Email          string
+	EmailConfirmed bool
+	DateJoined     string
 }
 
 func GetUsersBoards(db *sql.DB, userId string) ([]UserBoard, error) {
@@ -117,6 +132,7 @@ func AddNewBoard(db *sql.DB, b Board) (Board, error) {
 
 // This method exists and will be used to change the owner of the board
 // Currently there can only be one board owner this will be used to change the board owner if for some reason a user may need it
+// TODO REMOVE THIS METHOD AND COMING IT WITH THE AddNewBoard method.
 func AddBoardToUserBoard(db *sql.DB, ub UserBoard) (UserBoard, error) {
 	row := db.QueryRow(
 		"INSERT INTO UserBoard(userId, BoardId, RolesId, InviteAccepted) Values(@p1, @p2, @p3, @p4) SELECT * FROM UserBoard JOIN Boards ON UserBoard.BoardId=Boards.BoardId WHERE UserId=@p1 AND UserBoard.BoardId=@p2",

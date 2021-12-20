@@ -9,9 +9,12 @@ import (
 
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/db_client"
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/models"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/gorilla/mux"
 )
+
+var mySigningKey = []byte("secret_key") // my signing key for tokens. TODO Create secret key and hide from being seen on github
 
 func main() {
 	db_client.InitializeDBConnection()
@@ -37,9 +40,44 @@ func router() {
 	log.Fatal(http.ListenAndServe(":3000", r)) // if it fails the program will safely exit
 }
 
-// TODO make global empty variables and use them as copies for each request, so we arent modifying the data
+func isAuthorized(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header["Token"] == nil {
+		respondWithError(w, http.StatusUnauthorized, "Unathorized")
+		return false
+	}
+
+	tokenString := r.Header.Get("Token")
+	claims := &models.Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims,
+		func(t *jwt.Token) (interface{}, error) {
+			return mySigningKey, nil
+		})
+
+	if err != nil {
+		switch err {
+		case jwt.ErrSignatureInvalid:
+			respondWithError(w, http.StatusUnauthorized, "Unathorized")
+			return false
+		default:
+			respondWithError(w, http.StatusBadRequest, "Problem occured during authorization")
+			return false
+		}
+	}
+
+	if !token.Valid {
+		respondWithError(w, http.StatusUnauthorized, "Unathorized")
+		return false
+	}
+	return true
+}
+
 // TODO Create more user friendly errors for each method specifically for if a row is not found
 func getUsersBoardsHandler(w http.ResponseWriter, r *http.Request) {
+	canAccess := isAuthorized(w, r)
+	if !canAccess {
+		return
+	}
 	params := mux.Vars(r)      // Gets any params in the http request
 	userId := params["userId"] // accessing the userId param
 
