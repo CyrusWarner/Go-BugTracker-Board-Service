@@ -5,18 +5,27 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/db_client"
 	"github.com/CyrusWarner/Go-BugTracker-Board-Service/models"
 	"github.com/golang-jwt/jwt"
+	"github.com/joho/godotenv"
 
 	"github.com/gorilla/mux"
 )
 
-var mySigningKey = []byte("secret_key") // my signing key for tokens. TODO Create secret key and hide from being seen on github
+var mySigningKey []byte // my signing key for tokens. TODO Create secret key and hide from being seen on github
 
 func main() {
+	envErr := godotenv.Load(".env")
+	if envErr != nil {
+		log.Fatalln("could not load .env file")
+	}
+	envKey := os.Getenv("JWTKEY")
+	mySigningKey = []byte(envKey)
+
 	db_client.InitializeDBConnection()
 
 	router() // has all of our routes using mux router
